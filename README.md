@@ -4,8 +4,10 @@ See IEEE S&P(Oakland)'19 [slides](https://drive.google.com/file/d/1_A33wucTOA2nZ
 Tested on a machine with Nvidia 1080Ti, Ubuntu 16.04/18.04, Tensorflow 1.8.0 and Keras 2.2.3.<br/>
 We recommend running NEUZZ on a machine with a Nvidia 1080Ti or higher for efficient NN training.
 - Python 2.7
-- Tensorflow
-- Keras
+- tensorflow-gpu==1.8.0
+- Keras==2.2.3
+- https://developer.nvidia.com/cuda-90-download-archive
+- https://developer.nvidia.com/rdp/cudnn-archive#a-collapse765-90
 ## Build
 ```bash
     gcc -O3 -funroll-loops ./neuzz.c -o neuzz
