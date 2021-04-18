@@ -124,7 +124,7 @@ out_dir_fd = -1;             /* FD of the lock file              */
 char *in_dir,                           /* Input directory with test cases  */
 *out_file,                         /* File to fuzz, if any             */
 *out_dir;                          /* Working & output directory       */
-char virgin_bits[MAP_SIZE];             /* Regions yet untouched by fuzzing */
+char virgin_bits[MAP_SIZE];             /* Regions yet untouched by fuzzing, 1 means untouched, 0 means touched*/
 static int mut_cnt = 0;                 /* Total mutation counter           */
 char *out_buf, *out_buf1, *out_buf2, *out_buf3;
 size_t len;                             /* Maximum file length for every mutation */
@@ -164,10 +164,10 @@ void setup_stdio_file(void) {
 
 }
 
-/* Count the number of non-255 bytes set in the bitmap. Used strictly for the
-   status screen, several calls per second or so. */
 #define FF(_b)  (0xff << ((_b) << 3))
 
+/* Count the number of non-255 bytes set in the bitmap. Used strictly for the
+   status screen, several calls per second or so. */
 static u32 count_non_255_bytes(u8 *mem) {
 
     u32 *ptr = (u32 *) mem;
@@ -1705,7 +1705,7 @@ void dry_run(char *dir, int stage) {
                 ck_read(fd_tmp, out_buf1, file_len, entry->d_name);
 
                 start_us = get_cur_time_us();
-                write_to_testcase(out_buf1, file_len);
+                write_to_testcase(out_buf1, file_len); //copy the testfile to outdir/.cur_input
                 int fault = run_target(exec_tmout);
                 if (fault != 0) {
                     if (fault == FAULT_CRASH) {
@@ -1838,7 +1838,7 @@ void fuzz_lop(char *grad_file, int sock) {
         /* send message to python module */
         if (line_cnt == retrain_interval) {
             round_cnt++;
-            now = count_non_255_bytes(virgin_bits);
+            now = count_non_255_bytes(virgin_bits); //count 255-bit-block which has covered edge
             edge_gain = now - old;
             old = now;
             if ((edge_gain > 30) || (fast == 0)) {
