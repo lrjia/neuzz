@@ -387,6 +387,7 @@ def gen_grad(data):
 
 def setup_server():
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # release socket at once
     sock.bind((HOST, PORT))
     sock.listen(1)
     conn, addr = sock.accept()
