@@ -77,7 +77,9 @@ def process_data():
         try:
             # append "-o tmp_file" to strip's arguments to avoid tampering tested binary.
             if argvv[0] == './strip':
-                out = call(['./afl-showmap', '-q', '-e', '-o', '/dev/stdout', '-m', '512', '-t', '500'] + argvv + [f] + ['-o', 'tmp_file'])
+                out = call(
+                    ['./afl-showmap', '-q', '-e', '-o', '/dev/stdout', '-m', '512', '-t', '500'] + argvv + [f] + ['-o',
+                                                                                                                  'tmp_file'])
             else:
                 out = call(['./afl-showmap', '-q', '-e', '-o', '/dev/stdout', '-m', '512', '-t', '500'] + argvv + [f])
         except subprocess.CalledProcessError:
@@ -153,7 +155,8 @@ def accur_1(y_true, y_pred):
     pred = tf.round(y_pred)
     summ = tf.constant(MAX_BITMAP_SIZE, dtype=tf.float32)
     wrong_num = tf.subtract(summ, tf.reduce_sum(tf.cast(tf.equal(y_true, pred), tf.float32), axis=-1))
-    right_1_num = tf.reduce_sum(tf.cast(tf.logical_and(tf.cast(y_true, tf.bool), tf.cast(pred, tf.bool)), tf.float32), axis=-1)
+    right_1_num = tf.reduce_sum(tf.cast(tf.logical_and(tf.cast(y_true, tf.bool), tf.cast(pred, tf.bool)), tf.float32),
+                                axis=-1)
     return K.mean(tf.divide(right_1_num, tf.add(right_1_num, wrong_num)))
 
 
@@ -274,7 +277,7 @@ def gen_adv3(f, fl, model, layer_list, idxx, splice):
         x = vectorize_file(fl[index])
         loss_value, grads_value = iterate([x])
         idx = np.flip(np.argsort(np.absolute(grads_value), axis=1)[:, -MAX_FILE_SIZE:].reshape((MAX_FILE_SIZE,)), 0)
-        #val = np.sign(grads_value[0][idx])
+        # val = np.sign(grads_value[0][idx])
         val = np.random.choice([1, -1], MAX_FILE_SIZE, replace=True)
         adv_list.append((idx, val, fl[index]))
 
