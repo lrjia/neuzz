@@ -100,7 +100,7 @@ def process_data():
             if int(j) in label:
                 bitmap[idx][label.index((int(j)))] = 1
 
-    # label dimension reduction
+    # label dimension reduction, 去除重复的列，就是删去总是一起出现与不出现的点
     fit_bitmap = np.unique(bitmap, axis=1)
     print("data dimension" + str(fit_bitmap.shape))
 
@@ -227,7 +227,7 @@ def splice_seed(fl1, fl2, idxx):
 
 
 # compute gradient for given input
-def gen_adv2(f, fl, model, layer_list, idxx, splice):
+def gen_adv(f, fl, model, layer_list, idxx, splice, sign):
     adv_list = []
     loss = layer_list[-2][1].output[:, f]
     grads = K.gradients(loss, model.input)[0]
@@ -236,60 +236,26 @@ def gen_adv2(f, fl, model, layer_list, idxx, splice):
     while fl[0] == fl[1]:
         fl[1] = random.choice(seed_list)
 
-    for index in range(ll):
-        x = vectorize_file(fl[index])
+    # 不知道具体作了什么，反正可以抽象成函数
+    def do_something(file_name):
+        x = vectorize_file(file_name)
         loss_value, grads_value = iterate([x])
         idx = np.flip(np.argsort(np.absolute(grads_value), axis=1)[:, -MAX_FILE_SIZE:].reshape((MAX_FILE_SIZE,)), 0)
-        val = np.sign(grads_value[0][idx])
-        adv_list.append((idx, val, fl[index]))
-
-    # do not generate spliced seed for the first round
-    if splice == 1 and round_cnt != 0:
-        if round_cnt % 2 == 0:
-            splice_seed(fl[0], fl[1], idxx)
-            x = vectorize_file('./splice_seeds/tmp_' + str(idxx))
-            loss_value, grads_value = iterate([x])
-            idx = np.flip(np.argsort(np.absolute(grads_value), axis=1)[:, -MAX_FILE_SIZE:].reshape((MAX_FILE_SIZE,)), 0)
+        if sign:
             val = np.sign(grads_value[0][idx])
-            adv_list.append((idx, val, './splice_seeds/tmp_' + str(idxx)))
         else:
-            splice_seed(fl[0], fl[1], idxx + 500)
-            x = vectorize_file('./splice_seeds/tmp_' + str(idxx + 500))
-            loss_value, grads_value = iterate([x])
-            idx = np.flip(np.argsort(np.absolute(grads_value), axis=1)[:, -MAX_FILE_SIZE:].reshape((MAX_FILE_SIZE,)), 0)
-            val = np.sign(grads_value[0][idx])
-            adv_list.append((idx, val, './splice_seeds/tmp_' + str(idxx + 500)))
-
-    return adv_list
-
-
-# compute gradient for given input without sign
-def gen_adv3(f, fl, model, layer_list, idxx, splice):
-    adv_list = []
-    loss = layer_list[-2][1].output[:, f]
-    grads = K.gradients(loss, model.input)[0]
-    iterate = K.function([model.input], [loss, grads])
-    ll = 2
-    while fl[0] == fl[1]:
-        fl[1] = random.choice(seed_list)
+            val = np.random.choice([1, -1], MAX_FILE_SIZE, replace=True)
+        adv_list.append((idx, val, file_name))
 
     for index in range(ll):
-        x = vectorize_file(fl[index])
-        loss_value, grads_value = iterate([x])
-        idx = np.flip(np.argsort(np.absolute(grads_value), axis=1)[:, -MAX_FILE_SIZE:].reshape((MAX_FILE_SIZE,)), 0)
-        # val = np.sign(grads_value[0][idx])
-        val = np.random.choice([1, -1], MAX_FILE_SIZE, replace=True)
-        adv_list.append((idx, val, fl[index]))
+        do_something(fl[index])
 
     # do not generate spliced seed for the first round
     if splice == 1 and round_cnt != 0:
+        if sign and round_cnt % 2 != 0:
+            idxx += 500
         splice_seed(fl[0], fl[1], idxx)
-        x = vectorize_file('./splice_seeds/tmp_' + str(idxx))
-        loss_value, grads_value = iterate([x])
-        idx = np.flip(np.argsort(np.absolute(grads_value), axis=1)[:, -MAX_FILE_SIZE:].reshape((MAX_FILE_SIZE,)), 0)
-        # val = np.sign(grads_value[0][idx])
-        val = np.random.choice([1, -1], MAX_FILE_SIZE, replace=True)
-        adv_list.append((idx, val, './splice_seeds/tmp_' + str(idxx)))
+        do_something('./splice_seeds/tmp_' + str(idxx))
 
     return adv_list
 
@@ -313,9 +279,6 @@ def gen_mutate2(model, edge_num, sign):
     else:
         rand_seed2 = [seed_list[i] for i in np.random.choice(len(seed_list), edge_num, replace=False)]
 
-    # function pointer for gradient computation
-    fn = gen_adv2 if sign else gen_adv3
-
     # select output neurons to compute gradient
     interested_indice = np.random.choice(MAX_BITMAP_SIZE, edge_num)
     layer_list = [(layer.name, layer) for layer in model.layers]
@@ -333,7 +296,7 @@ def gen_mutate2(model, edge_num, sign):
             print("number of feature " + str(idxx))
             index = int(interested_indice[idxx])
             fl = [rand_seed1[idxx], rand_seed2[idxx]]
-            adv_list = fn(index, fl, model, layer_list, idxx, 1)
+            adv_list = gen_adv(index, fl, model, layer_list, idxx, 1, sign)
             tmp_list.append(adv_list)
             for ele in adv_list:
                 ele0 = [str(el) for el in ele[0]]
