@@ -1185,44 +1185,37 @@ void run_and_process_fault(char* test_case, size_t len_, int* tmout_cnt){
     }
 }
 
-/* save mutations that find new edges. */
-void save_new_edges_mutations(char* test_case,size_t len_,int iter){
-    int ret = has_new_bits(virgin_bits);
-    if (ret == 2) {
-        char *mut_fn = alloc_printf("%s/id_%d_%d_%06d_cov", out_dir, round_cnt, iter, mut_cnt);
-        int mut_fd = open(mut_fn, O_WRONLY | O_CREAT | O_EXCL, 0600);
-        ck_write(mut_fd, test_case, len_, mut_fn);
-        free(mut_fn);
-        close(mut_fd);
-        mut_cnt = mut_cnt + 1;
+void save_new_edges_mutations_with_iter(char* test_case,size_t len_,char* outdir_,int iter){
+    char ret = has_new_bits(virgin_bits);
+
+    char* format;
+    char* mut_fn;
+    if(iter>=0){
+        if (ret == 2) {
+            format="%s/id_%d_%d_%06d_cov";
+        } else if (ret == 1) {
+            format="%s/id_%d_%d_%06d";
+        }
+        mut_fn=alloc_printf(format, outdir_, round_cnt, mut_cnt,iter);
+    } else{
+        if (ret == 2) {
+            format="%s/id_%d_%06d_cov";
+        } else if (ret == 1) {
+            format="%s/id_%d_%06d";
+        }
+        mut_fn=alloc_printf(format, outdir_, round_cnt, mut_cnt);
     }
-    if (ret == 1) {
-        char *mut_fn = alloc_printf("%s/id_%d_%d_%06d", out_dir, round_cnt, iter, mut_cnt);
-        int mut_fd = open(mut_fn, O_WRONLY | O_CREAT | O_EXCL, 0600);
-        ck_write(mut_fd, test_case, len_, mut_fn);
-        free(mut_fn);
-        close(mut_fd);
-        mut_cnt = mut_cnt + 1;
-    }
+
+    int mut_fd = open(mut_fn, O_WRONLY | O_CREAT | O_EXCL, 0600);
+    ck_write(mut_fd, test_case, len_, mut_fn);
+    free(mut_fn);
+    close(mut_fd);
+    mut_cnt = mut_cnt + 1;
 }
 
-void save_new_edges_mutations_no_iter(char* test_case,size_t len_,char* outdir_){
-    int ret = has_new_bits(virgin_bits);
-    if (ret == 2) {
-        char *mut_fn = alloc_printf("%s/id_%d_%06d_cov", outdir_, round_cnt, mut_cnt);
-        int mut_fd = open(mut_fn, O_WRONLY | O_CREAT | O_EXCL, 0600);
-        ck_write(mut_fd, test_case, len_, mut_fn);
-        free(mut_fn);
-        close(mut_fd);
-        mut_cnt = mut_cnt + 1;
-    } else if (ret == 1) {
-        char *mut_fn = alloc_printf("%s/id_%d_%06d", outdir_, round_cnt, mut_cnt);
-        int mut_fd = open(mut_fn, O_WRONLY | O_CREAT | O_EXCL, 0600);
-        ck_write(mut_fd, test_case, len_, mut_fn);
-        free(mut_fn);
-        close(mut_fd);
-        mut_cnt = mut_cnt + 1;
-    }
+/* save mutations that find new edges. */
+void save_new_edges_mutations(char* test_case,size_t len_,char* outdir_){
+    save_new_edges_mutations_with_iter(test_case,len_,outdir_,-1);
 }
 
 
@@ -1274,7 +1267,7 @@ void gen_mutate(bool slow) {
                     out_buf1[loc[index]] = mut_val;
             }
             run_and_process_fault(out_buf1, len, &tmout_cnt);
-            save_new_edges_mutations(out_buf1,len,iter);
+            save_new_edges_mutations_with_iter(out_buf1,len,out_dir,iter);
 
         }
 
@@ -1291,7 +1284,7 @@ void gen_mutate(bool slow) {
             }
 
             run_and_process_fault(out_buf2, len, &tmout_cnt);
-            save_new_edges_mutations(out_buf2,len,iter);
+            save_new_edges_mutations_with_iter(out_buf2,len,out_dir,iter);
 
         }
     }
@@ -1314,7 +1307,7 @@ void gen_mutate(bool slow) {
         memcpy(out_buf1 + del_loc, out_buf + del_loc + cut_len, len - del_loc - cut_len);
 
         run_and_process_fault(out_buf1, len - cut_len, &tmout_cnt);
-        save_new_edges_mutations_no_iter(out_buf1,len - cut_len, out_dir);
+        save_new_edges_mutations(out_buf1,len - cut_len, out_dir);
 
         cut_len = choose_block_len(len - 1);
         rand_loc = (random() % cut_len);
@@ -1325,7 +1318,7 @@ void gen_mutate(bool slow) {
         memcpy(out_buf3 + del_loc + cut_len, out_buf + del_loc, len - del_loc);
 
         run_and_process_fault(out_buf3, len + cut_len, &tmout_cnt);
-        save_new_edges_mutations_no_iter(out_buf3,len + cut_len, "vari_seeds");
+        save_new_edges_mutations(out_buf3,len + cut_len, "vari_seeds");
     }
 }
 
