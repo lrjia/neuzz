@@ -348,23 +348,62 @@ def gen_grad(data):
     print(time.time() - t0)
 
 
+class FileLog:
+    def __init__(self):
+        self.last_file_line = 0
+        with open("./nn.log", 'w') as f:
+            pass
+        with open("./neuzz.log", 'w') as f:
+            pass
+
+    def send_to_file(self, info):
+        print "start send"
+        is_send = False
+        while not is_send:
+            try:
+                with open("./nn.log", 'a') as f:
+                    f.write(info)
+                    is_send = True
+            except IOError:
+                time.sleep(1)
+                continue
+        print "end send"
+
+    def received_from_file(self):
+        print "start receive"
+        is_received = False
+        info = None
+        while not is_received:
+            try:
+                with open("./neuzz.log", 'r') as f:
+                    info = f.read().strip().split('\n')
+                    if info[0]=="":
+                        time.sleep(1)
+                        continue
+                if len(info) > self.last_file_line:
+                    self.last_file_line = len(info)
+                    is_received = True
+            except IOError:
+                time.sleep(1)
+                continue
+        print "end receive "+info[-1]+"\n"
+        return info[-1]
+
+
+
 def setup_server():
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # release socket at once
-    sock.bind((HOST, PORT))
-    sock.listen(1)
-    conn, addr = sock.accept()
-    print('connected by neuzz execution moduel ' + str(addr))
+    file_log = FileLog()
+    file_log.send_to_file("start")
+    file_log.received_from_file()
     gen_grad(b"train")
-    conn.sendall(b"start")
+    file_log.send_to_file("start")
     while True:
-        data = conn.recv(1024)
+        data = file_log.received_from_file()
         if not data:
             break
         else:
             gen_grad(data)
-            conn.sendall(b"start")
-    conn.close()
+            file_log.send_to_file("start")
 
 
 if __name__ == '__main__':

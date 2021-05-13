@@ -24,6 +24,7 @@
 #include <netinet/in.h>
 #include <time.h>
 #include <stdbool.h>
+#include <assert.h>
 
 /* Most of code is borrowed directly from AFL fuzzer (https://github.com/mirrorer/afl), credits to Michal Zalewski */
 
@@ -472,7 +473,7 @@ void init_forkserver(char **argv) {
        Otherwise, try to figure out what went wrong. */
 
     if (rlen == 4) {
-        printf("All right - fork server is up.");
+        printf("All right - fork server is up.\n");
         return;
     }
 
@@ -1460,8 +1461,58 @@ void copy_seeds(char *in_dir, char *out_dir) {
     return;
 }
 
+void send_to_file(char *str) {
+    printf("starting send\n");
+    bool is_send = false;
+    static int last_file_line = 0;
+    while (!is_send) {
+        FILE *fp = NULL;
+        fp = fopen("./neuzz.log", "a");
+        if (fp == NULL) {
+            sleep(1);
+            continue;
+        }
+        fprintf(fp, "%s\n", str);
+        fclose(fp);
+        is_send = true;
+    }
+    printf("send\n");
+}
+
+void receive_from_file(char *buf) {
+    printf("starting receive\n");
+    bool received = false;
+    static int last_file_line = 0;
+    while (!received) {
+        FILE *fp = NULL;
+        fp = fopen("./nn.log", "r");
+        if (fp == NULL) {
+            sleep(1);
+            continue;
+        }
+        int line = 0;
+        while (!feof(fp)) {
+            if (fgets(buf, 6, fp) != NULL) {
+                line++;
+                if (line > last_file_line) {
+                    assert(strcmp(buf, "start") == 0);
+                    last_file_line++;
+                    printf("receive\n");
+                    received = true;
+                    break;//每次只读取一个start信号
+                }
+            }
+        }
+        fclose(fp);
+        if(!received){
+            sleep(1);
+        }
+    }
+    printf("received\n");
+}
+
 /* parse the gradient to guide fuzzing */
-void fuzz_lop(char *grad_file, int sock) {
+void fuzz_lop(char *grad_file) {
     dry_run("./splice_seeds/", 1);
     copy_file("gradient_info_p", grad_file);
     FILE *stream = fopen(grad_file, "r");
@@ -1488,11 +1539,11 @@ void fuzz_lop(char *grad_file, int sock) {
             edge_gain = now - old;
             old = now;
             if ((edge_gain > 30) || (fast == 0)) {
-                send(sock, "train", 5, 0);
+                send_to_file("train");
                 fast = 1;
                 printf("fast stage\n");
             } else {
-                send(sock, "sloww", 5, 0);
+                send_to_file("sloww");
                 fast = 0;
                 printf("slow stage\n");
             }
@@ -1541,27 +1592,9 @@ void fuzz_lop(char *grad_file, int sock) {
 
 /* connect to python NN module, then read the gradient file to guide fuzzing */
 void start_fuzz(int f_len) {
-
-    /* connect to python module */
-    struct sockaddr_in address;
-    int sock = 0;
-    struct sockaddr_in serv_addr;
-    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        perror("Socket creation error");
-        exit(0);
-    }
-    memset(&serv_addr, '0', sizeof(serv_addr));
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(PORT);
-    if (inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr) <= 0) {
-        perror("Invalid address/ Address not supported");
-        exit(0);
-    }
-    if (connect(sock, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
-        perror("Connection Failed");
-        exit(0);
-    }
-
+    char buf[32];
+    receive_from_file(buf);
+    send_to_file("connected");
     /* set up buffer */
     out_buf = malloc(10000);
     if (!out_buf)
@@ -1581,12 +1614,16 @@ void start_fuzz(int f_len) {
     dry_run(out_dir, 2);
 
     /* start fuzz */
-    char buf[16];
     while (1) {
-        if (read(sock, buf, 5) == -1)
-            perror("received failed\n");
-        fuzz_lop("gradient_info", sock);
-        printf("receive\n");
+        receive_from_file(buf);
+        if(strcmp(buf,"start")!=0){
+            printf("wrong info");
+            continue;
+        }
+        if(strcmp(buf,"end")==0){
+            break;
+        }
+        fuzz_lop("gradient_info");
     }
     return;
 }
@@ -1613,7 +1650,7 @@ void start_fuzz_test(int f_len) {
     /* dry run */
     dry_run(out_dir, 0);
     /* fuzz */
-    fuzz_lop("gradient_info", sock);
+    fuzz_lop("gradient_info");
     return;
 }
 
