@@ -2,13 +2,13 @@
     "tasks": [
         {
             "type": "cppbuild",
-            "label": "C/C++: gcc 生成活动文件",
+            "label": "neuzz build",
             "command": "/usr/bin/gcc",
             "args": [
                 "-g",
-                "${file}",
+                "${workspaceFolder}/neuzz.c",
                 "-o",
-                "${fileDirname}/${fileBasenameNoExtension}"
+                "${workspaceFolder}/neuzz"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"

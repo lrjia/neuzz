@@ -5,38 +5,16 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: 当前文件",
+            "name": "nn",
             "type": "python",
             "request": "launch",
-            "program": "${file}",
+            "program": "${workspaceFolder}/nn.py",
+            "args": [
+                "./programs/readelf/readelf",
+                "-a",
+            ],
+            "cwd": "${workspaceFolder}/..",
             "console": "integratedTerminal"
         },
-        {
-            "name": "调试c,readelf",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${fileDirname}/${fileBasenameNoExtension}",
-            "args": [
-                "-i ./programs/readelf/neuzz_in",
-                "-o seeds",
-                "-l 7506",
-                "./programs/readelf/readelf",
-                "-a @@"
-            ],
-            "stopAtEntry": false,
-            "cwd": "${workspaceFolder}",
-            "environment": [],
-            "externalConsole": false,
-            "MIMode": "gdb",
-            "setupCommands": [
-                {
-                    "description": "为 gdb 启用整齐打印",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                }
-            ],
-            "preLaunchTask": "C/C++: gcc 生成活动文件",
-            "miDebuggerPath": "/usr/bin/gdb"
-        }
     ]
 }
