@@ -357,7 +357,7 @@ class FileLog:
             pass
 
     def send_to_file(self, info):
-        print "start send"
+        print("start send")
         is_send = False
         while not is_send:
             try:
@@ -367,10 +367,10 @@ class FileLog:
             except IOError:
                 time.sleep(1)
                 continue
-        print "end send"
+        print("end send")
 
     def received_from_file(self):
-        print "start receive"
+        print("start receive")
         is_received = False
         info = None
         while not is_received:
@@ -386,7 +386,7 @@ class FileLog:
             except IOError:
                 time.sleep(1)
                 continue
-        print "end receive "+info[-1]+"\n"
+        print("end receive "+info[-1])
         return info[-1]
 
 
