@@ -1,0 +1,12 @@
+/seeds
+/vari_seeds
+/bitmaps
+/nn/venv
+gradient_info
+gradient_info_p
+hard_label.h5
+/crashes
+nn.log
+neuzz.log
+/neuzz/cmake-build-debug
+/neuzz/neuzz
