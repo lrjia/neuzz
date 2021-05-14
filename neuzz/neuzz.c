@@ -1188,8 +1188,8 @@ void run_and_process_fault(char* test_case, size_t len_, int* tmout_cnt){
 
 void save_new_edges_mutations_with_iter(char* test_case,size_t len_,char* outdir_,int iter){
     char ret = has_new_bits(virgin_bits);
-
-    char* format;
+    if(ret==0) return;
+    char* format=NULL;
     char* mut_fn;
     if(iter>=0){
         if (ret == 2) {
@@ -1197,7 +1197,7 @@ void save_new_edges_mutations_with_iter(char* test_case,size_t len_,char* outdir
         } else if (ret == 1) {
             format="%s/id_%d_%d_%06d";
         }
-        mut_fn=alloc_printf(format, outdir_, round_cnt, mut_cnt,iter);
+        mut_fn=alloc_printf(format, outdir_, round_cnt,iter,mut_cnt);
     } else{
         if (ret == 2) {
             format="%s/id_%d_%06d_cov";
