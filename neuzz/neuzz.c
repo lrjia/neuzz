@@ -1336,7 +1336,7 @@ void dry_run(char *dir, int stage) {
                 int file_len = statbuf.st_size;
                 memset(out_buf1, 0, len);
                 ck_read(fd_tmp, out_buf1, file_len, file_name);
-
+                close(fd_tmp);
                 start_us = get_cur_time_us();
                 write_to_testcase(out_buf1, file_len); //copy the testfile to outdir/.cur_input
                 int fault = run_target(exec_tmout);
@@ -1361,7 +1361,6 @@ void dry_run(char *dir, int stage) {
                 stop_us = get_cur_time_us();
                 total_cal_us = total_cal_us - start_us + stop_us;
                 cnt = cnt + 1;
-                close(fd_tmp);
             }
         }
         free(file_name);file_name = NULL;

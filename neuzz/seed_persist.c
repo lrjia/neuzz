@@ -25,7 +25,12 @@
 
 void save_seed(char* content,size_t len_,char *locate,char* id_str){
     char *mut_fn = alloc_printf("%s/%s_%d_%06d", locate, id_str, round_cnt, mut_cnt);
-    int mut_fd = open(mut_fn, O_WRONLY | O_CREAT | O_EXCL, 0600);
+    int mut_fd = open(mut_fn, O_WRONLY | O_CREAT| O_EXCL, 0600);
+    if (mut_fd==-1){
+        fprintf(stderr, "err when open file: %s  %s\n", mut_fn, strerror(errno));
+        free(mut_fn);
+        return;
+    }
     ck_write(mut_fd, content, len_, mut_fn);
     close(mut_fd);
     mut_cnt = mut_cnt + 1;
