@@ -330,7 +330,7 @@ def train(model):
     callbacks_list = [loss_history, lrate]
     model.fit_generator(train_generate(16),
                         steps_per_epoch=(SPLIT_RATIO / 16 + 1),
-                        epochs=100,
+                        epochs=5,
                         verbose=1, callbacks=callbacks_list)
     # Save model and weights
     model.save_weights("hard_label.h5")
@@ -377,7 +377,7 @@ class FileLog:
             try:
                 with open("./neuzz.log", 'r') as f:
                     info = f.read().strip().split('\n')
-                    if info[0]=="":
+                    if info[0] == "":
                         time.sleep(1)
                         continue
                 if len(info) > self.last_file_line:
@@ -386,9 +386,8 @@ class FileLog:
             except IOError:
                 time.sleep(1)
                 continue
-        print("end receive "+info[-1])
+        print("end receive " + info[-1])
         return info[-1]
-
 
 
 def setup_server():

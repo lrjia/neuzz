@@ -25,6 +25,9 @@
 #include <time.h>
 #include <stdbool.h>
 #include <assert.h>
+#include "neuzz.h"
+#include "connect.h"
+#include "seed_persist.h"
 
 /* Most of code is borrowed directly from AFL fuzzer (https://github.com/mirrorer/afl), credits to Michal Zalewski */
 
@@ -62,18 +65,6 @@ int havoc_blk_large = 8192;
 #define MIN(_a, _b) ((_a) > (_b) ? (_b) : (_a))
 #define MAX(_a, _b) ((_a) > (_b) ? (_a) : (_b))
 
-/* Error-checking versions of read() and write() that call RPFATAL() as appropriate. */
-#define ck_write(fd, buf, len, fn) do { \
-    u32 _len = (len); \
-    int _res = write(fd, buf, _len); \
-    if (_res != _len) fprintf(stderr, "Short write to %d %s\n",_res, fn); \
-} while (0)
-
-#define ck_read(fd, buf, len, fn) do { \
-    u32 _len = (len); \
-    int _res = read(fd, buf, _len); \
-    if (_res != _len) fprintf(stderr, "Short read from %d %s\n",_res, fn); \
-} while (0)
 
 /* User-facing macro to sprintf() to a dynamically allocated buffer. */
 #define alloc_printf(_str...) ({ \
@@ -127,7 +118,7 @@ char *in_dir,                           /* Input directory with test cases  */
 *out_file,                         /* File to fuzz, if any             */
 *out_dir;                          /* Working & output directory       */
 char virgin_bits[MAP_SIZE];             /* Regions yet untouched by fuzzing, 1 means untouched, 0 means touched*/
-static int mut_cnt = 0;                 /* Total mutation counter           */
+int mut_cnt = 0;                 /* Total mutation counter           */
 char *out_buf, *out_buf1, *out_buf2, *out_buf3;
 size_t len;                             /* Maximum file length for every mutation */
 int loc[10000];                         /* Array to store critical bytes locations*/
@@ -146,6 +137,8 @@ enum {
     /* 04 */ FAULT_NOINST,
     /* 05 */ FAULT_NOBITS
 };
+
+
 
 /* Spin up fork server (instrumented mode only). The idea is explained here:
    http://lcamtuf.blogspot.com/2014/10/fuzzing-binaries-without-execve.html
@@ -1165,22 +1158,12 @@ void run_and_process_fault(char* test_case, size_t len_, int* tmout_cnt){
     int fault = run_target(exec_tmout);
     if (fault != 0) {
         if (fault == FAULT_CRASH) {
-            char *mut_fn = alloc_printf("%s/crash_%d_%06d", "./crashes", round_cnt, mut_cnt);
-            int mut_fd = open(mut_fn, O_WRONLY | O_CREAT | O_EXCL, 0600);
-            ck_write(mut_fd, out_buf1, len_, mut_fn);
-            free(mut_fn);
-            close(mut_fd);
-            mut_cnt = mut_cnt + 1;
+            save_crash(out_buf1,len_);
         } else if ((fault = FAULT_TMOUT) && (*tmout_cnt < 20)) {
             *tmout_cnt = *tmout_cnt + 1;
             fault = run_target(1000);
             if (fault == FAULT_CRASH) {
-                char *mut_fn = alloc_printf("%s/crash_%d_%06d", "./crashes", round_cnt, mut_cnt);
-                int mut_fd = open(mut_fn, O_WRONLY | O_CREAT | O_EXCL, 0600);
-                ck_write(mut_fd, out_buf1, len_, mut_fn);
-                free(mut_fn);
-                close(mut_fd);
-                mut_cnt = mut_cnt + 1;
+                save_crash(out_buf1,len_);
             }
         }
     }
@@ -1333,44 +1316,37 @@ void dry_run(char *dir, int stage) {
         fprintf(stderr, "cannot open directory: %s\n", dir);
         return;
     }
-    if (chdir(dir) == -1)
-        perror("chdir failed\n");
     int cnt = 0;
     u64 start_us, stop_us;
     while ((entry = readdir(dp)) != NULL) {
-        if (stat(entry->d_name, &statbuf) == -1)
+        char *file_name = (char *) malloc(strlen(dir) + strlen(entry->d_name) + 10);
+        strcpy(file_name, dir);
+        strcat(file_name, "/");
+        strcat(file_name, entry->d_name);
+        if (stat(file_name, &statbuf) == -1)
             continue;
+
         if (S_ISREG(statbuf.st_mode)) {
             char *tmp = NULL;
             tmp = strstr(entry->d_name, ".");
             if (tmp != entry->d_name) {
-                int fd_tmp = open(entry->d_name, O_RDONLY);
+                int fd_tmp = open(file_name, O_RDONLY);
                 if (fd_tmp == -1)
                     perror("open failed");
                 int file_len = statbuf.st_size;
                 memset(out_buf1, 0, len);
-                ck_read(fd_tmp, out_buf1, file_len, entry->d_name);
+                ck_read(fd_tmp, out_buf1, file_len, file_name);
 
                 start_us = get_cur_time_us();
                 write_to_testcase(out_buf1, file_len); //copy the testfile to outdir/.cur_input
                 int fault = run_target(exec_tmout);
                 if (fault != 0) {
                     if (fault == FAULT_CRASH) {
-                        char *mut_fn = alloc_printf("%s/crash_%d_%06d", "./crashes", round_cnt, mut_cnt);
-                        int mut_fd = open(mut_fn, O_WRONLY | O_CREAT | O_EXCL, 0600);
-                        ck_write(mut_fd, out_buf1, file_len, mut_fn);
-                        free(mut_fn);
-                        close(mut_fd);
-                        mut_cnt = mut_cnt + 1;
+                        save_crash(out_buf1,file_len);
                     } else if (fault = FAULT_TMOUT) {
                         fault = run_target(1000);
                         if (fault == FAULT_CRASH) {
-                            char *mut_fn = alloc_printf("%s/crash_%d_%06d", "./crashes", round_cnt, mut_cnt);
-                            int mut_fd = open(mut_fn, O_WRONLY | O_CREAT | O_EXCL, 0600);
-                            ck_write(mut_fd, out_buf1, file_len, mut_fn);
-                            free(mut_fn);
-                            close(mut_fd);
-                            mut_cnt = mut_cnt + 1;
+                            save_crash(out_buf1,file_len);
                         }
                     }
                 }
@@ -1378,12 +1354,7 @@ void dry_run(char *dir, int stage) {
                 int ret = has_new_bits(virgin_bits);
                 if (ret != 0) {
                     if (stage == 1) {
-                        char *mut_fn = alloc_printf("../%s/id_%d_%06d", out_dir, round_cnt, mut_cnt);
-                        int mut_fd = open(mut_fn, O_WRONLY | O_CREAT | O_EXCL, 0600);
-                        ck_write(mut_fd, out_buf1, len, mut_fn);
-                        free(mut_fn);
-                        close(mut_fd);
-                        mut_cnt = mut_cnt + 1;
+                        add_to_queue(out_buf1,len);
                     }
                 }
 
@@ -1393,9 +1364,8 @@ void dry_run(char *dir, int stage) {
                 close(fd_tmp);
             }
         }
+        free(file_name);file_name = NULL;
     }
-    if (chdir("..") == -1)
-        perror("chdir failed\n");
     closedir(dp);
 
     /* estimate the average exec time at the beginning*/
@@ -1461,55 +1431,6 @@ void copy_seeds(char *in_dir, char *out_dir) {
     return;
 }
 
-void send_to_file(char *str) {
-    printf("starting send\n");
-    bool is_send = false;
-    static int last_file_line = 0;
-    while (!is_send) {
-        FILE *fp = NULL;
-        fp = fopen("./neuzz.log", "a");
-        if (fp == NULL) {
-            sleep(1);
-            continue;
-        }
-        fprintf(fp, "%s\n", str);
-        fclose(fp);
-        is_send = true;
-    }
-    printf("send\n");
-}
-
-void receive_from_file(char *buf) {
-    printf("starting receive\n");
-    bool received = false;
-    static int last_file_line = 0;
-    while (!received) {
-        FILE *fp = NULL;
-        fp = fopen("./nn.log", "r");
-        if (fp == NULL) {
-            sleep(1);
-            continue;
-        }
-        int line = 0;
-        while (!feof(fp)) {
-            if (fgets(buf, 6, fp) != NULL) {
-                line++;
-                if (line > last_file_line) {
-                    assert(strcmp(buf, "start") == 0);
-                    last_file_line++;
-                    printf("receive\n");
-                    received = true;
-                    break;//每次只读取一个start信号
-                }
-            }
-        }
-        fclose(fp);
-        if(!received){
-            sleep(1);
-        }
-    }
-    printf("received\n");
-}
 
 /* parse the gradient to guide fuzzing */
 void fuzz_lop(char *grad_file) {
