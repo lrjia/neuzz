@@ -18,4 +18,6 @@ static inline void ck_read(int fd, char* buf, size_t _len, const char* fn) {
         fprintf(stderr, "Short read from %ld %s\n",_res, fn);
 }
 
+#include "gen_bitmap.h"
+
 #endif //NEUZZ_NEUZZ_H

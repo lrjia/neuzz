@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include "seed_persist.h"
 #include "neuzz.h"
+#include "gen_bitmap.h"
 
 
 /* User-facing macro to sprintf() to a dynamically allocated buffer. */
@@ -26,9 +27,11 @@ void save_seed(char* content,size_t len_,char *locate,char* id_str){
     char *mut_fn = alloc_printf("%s/%s_%d_%06d", locate, id_str, round_cnt, mut_cnt);
     int mut_fd = open(mut_fn, O_WRONLY | O_CREAT | O_EXCL, 0600);
     ck_write(mut_fd, content, len_, mut_fn);
-    free(mut_fn);
     close(mut_fd);
     mut_cnt = mut_cnt + 1;
+
+    gen_bitmap(NULL,mut_fn,NULL);
+    free(mut_fn);
 }
 
 

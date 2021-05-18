@@ -1625,12 +1625,11 @@ void main(int argc, char *argv[]) {
     init_count_class16();
     setup_dirs_fds();
     if (!out_file) setup_stdio_file();
+    copy_seeds(in_dir, out_dir);
+    gen_all_bitmap(&argv[optind],out_dir,"./raw_bitmap");
     detect_file_args(argv + optind + 1);
     setup_targetpath(argv[optind]);
-
-    copy_seeds(in_dir, out_dir);
     init_forkserver(argv + optind);
-
     start_fuzz(len);
     printf("total execs %ld edge coverage %d.\n", total_execs, count_non_255_bytes(virgin_bits));
     return;

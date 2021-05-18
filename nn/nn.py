@@ -67,6 +67,7 @@ def process_data():
     os.path.isdir("./splice_seeds/") or os.makedirs("./splice_seeds")
     os.path.isdir("./vari_seeds/") or os.makedirs("./vari_seeds")
     os.path.isdir("./crashes/") or os.makedirs("./crashes")
+    os.path.isdir("./raw_bitmap") or os.makedirs("./raw_bitmap")
 
     # obtain raw bitmaps
     raw_bitmap = {}
@@ -77,11 +78,12 @@ def process_data():
         try:
             # append "-o tmp_file" to strip's arguments to avoid tampering tested binary.
             if argvv[0] == './strip':
-                out = call(
-                    ['./afl-showmap', '-q', '-e', '-o', '/dev/stdout', '-m', '512', '-t', '500'] + argvv + [f] + ['-o',
-                                                                                                                  'tmp_file'])
+                assert False;
             else:
-                out = call(['./afl-showmap', '-q', '-e', '-o', '/dev/stdout', '-m', '512', '-t', '500'] + argvv + [f])
+                # out = call(['./afl-showmap', '-q', '-e', '-o', '/dev/stdout', '-m', '512', '-t', '500'] + argvv + [f])
+                bitmap_filename = "raw_bitmap/" + f[f.rindex('/'):] + ".bitmap"
+                file = open(bitmap_filename, "r")
+                out = file.read()
         except subprocess.CalledProcessError:
             print("find a crash")
         for line in out.splitlines():
@@ -330,7 +332,7 @@ def train(model):
     callbacks_list = [loss_history, lrate]
     model.fit_generator(train_generate(16),
                         steps_per_epoch=(SPLIT_RATIO / 16 + 1),
-                        epochs=5,
+                        epochs=100,
                         verbose=1, callbacks=callbacks_list)
     # Save model and weights
     model.save_weights("hard_label.h5")
